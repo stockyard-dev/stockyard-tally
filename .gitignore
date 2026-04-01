@@ -1,0 +1,5 @@
+/tally
+/data/
+*.db
+*.db-shm
+*.db-wal

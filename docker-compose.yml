@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  tally:
+    build: .
+    ports:
+      - "9110:9110"
+    environment:
+      - PORT=9110
+      - DATA_DIR=/data
+      - TALLY_LICENSE_KEY=
+    volumes:
+      - tally_data:/data
+    restart: unless-stopped
+volumes:
+  tally_data:
