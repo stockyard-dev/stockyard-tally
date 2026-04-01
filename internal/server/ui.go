@@ -1,120 +1,37 @@
 package server
 
 var dashboardHTML = []byte(`<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stockyard Tally</title>
-<style>
-  :root {
-    --bg: #1a1410;
-    --surface: #241c15;
-    --border: #3d2e1e;
-    --rust: #c4622d;
-    --leather: #8b5e3c;
-    --cream: #f5e6c8;
-    --muted: #7a6550;
-    --text: #e8d5b0;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace, sans-serif; min-height: 100vh; }
-  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; }
-  .logo { color: var(--rust); font-size: 1.25rem; font-weight: 700; letter-spacing: 0.05em; }
-  .badge { background: var(--rust); color: var(--cream); font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 3px; font-weight: 600; text-transform: uppercase; }
-  main { max-width: 960px; margin: 2rem auto; padding: 0 2rem; }
-  .hero { text-align: center; padding: 3rem 0 2rem; }
-  .hero h1 { font-size: 2rem; color: var(--cream); margin-bottom: 0.5rem; }
-  .hero p { color: var(--muted); font-size: 0.95rem; max-width: 480px; margin: 0 auto; }
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 2rem 0; }
-  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.25rem; text-align: center; }
-  .stat-value { font-size: 1.75rem; font-weight: 700; color: var(--rust); }
-  .stat-label { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.5rem; margin-bottom: 1rem; }
-  .card h2 { font-size: 1rem; color: var(--cream); margin-bottom: 1rem; }
-  .tier-box { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  .tier { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 1rem; }
-  .tier.pro { border-color: var(--rust); }
-  .tier-name { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.5rem; }
-  .tier.pro .tier-name { color: var(--rust); }
-  .tier-desc { font-size: 0.85rem; color: var(--text); }
-  .tier-price { font-size: 0.8rem; color: var(--leather); margin-top: 0.5rem; }
-  footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.75rem; }
-  footer a { color: var(--leather); text-decoration: none; }
-  .endpoint-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-  .endpoint-table th { text-align: left; color: var(--muted); padding: 0.5rem; border-bottom: 1px solid var(--border); }
-  .endpoint-table td { padding: 0.5rem; border-bottom: 1px solid var(--border); color: var(--text); }
-  .method { color: var(--rust); font-weight: 600; }
-</style>
-</head>
-<body>
-<header>
-  <span class="logo">⬡ Stockyard</span>
-  <span style="color:var(--muted);">/</span>
-  <span style="color:var(--cream);font-weight:600;">Tally</span>
-  <span class="badge">v0.1.0</span>
-</header>
-<main>
-  <div class="hero">
-    <h1>Tally</h1>
-    <p>Event tracking — script tag, custom events, funnels, no cookies, no GDPR problem</p>
-  </div>
-  <div class="stats">
-    <div class="stat">
-      <div class="stat-value" id="stat-items">—</div>
-      <div class="stat-label">Total Items</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value">9110</div>
-      <div class="stat-label">Port</div>
-    </div>
-    <div class="stat">
-      <div class="stat-value" id="stat-tier">—</div>
-      <div class="stat-label">Tier</div>
-    </div>
-  </div>
-  <div class="card">
-    <h2>Tier &amp; Limits</h2>
-    <div class="tier-box">
-      <div class="tier">
-        <div class="tier-name">Free</div>
-        <div class="tier-desc">1 project, 10k events/mo</div>
-        <div class="tier-price">$0/mo</div>
-      </div>
-      <div class="tier pro">
-        <div class="tier-name">Pro</div>
-        <div class="tier-desc">Unlimited projects and events</div>
-        <div class="tier-price">$4.99/mo</div>
-      </div>
-    </div>
-  </div>
-  <div class="card">
-    <h2>API Endpoints</h2>
-    <table class="endpoint-table">
-      <thead><tr><th>Method</th><th>Path</th><th>Description</th></tr></thead>
-      <tbody>
-        <tr><td class="method">GET</td><td>/health</td><td>Health check</td></tr>
-        <tr><td class="method">GET</td><td>/api/version</td><td>Version info</td></tr>
-        <tr><td class="method">GET</td><td>/api/limits</td><td>Current tier limits</td></tr>
-        <tr><td class="method">GET</td><td>/api/items</td><td>List items</td></tr>
-        <tr><td class="method">POST</td><td>/api/items</td><td>Create item</td></tr>
-        <tr><td class="method">GET</td><td>/api/items/{id}</td><td>Get item</td></tr>
-        <tr><td class="method">PUT</td><td>/api/items/{id}</td><td>Update item</td></tr>
-        <tr><td class="method">DELETE</td><td>/api/items/{id}</td><td>Delete item</td></tr>
-      </tbody>
-    </table>
-  </div>
-</main>
-<footer>
-  <a href="https://stockyard.dev">stockyard.dev</a> &mdash; Developer Tools &mdash; Apache 2.0
-</footer>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Stockyard Tally</title><style>:root{--bg:#1a1410;--surface:#241c15;--border:#3d2e1e;--rust:#c4622d;--leather:#8b5e3c;--cream:#f5e6c8;--muted:#7a6550;--text:#e8d5b0}*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace,sans-serif;min-height:100vh}header{background:var(--surface);border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;gap:1rem}.logo{color:var(--rust);font-size:1.25rem;font-weight:700}.badge{background:var(--rust);color:var(--cream);font-size:0.65rem;padding:0.2rem 0.5rem;border-radius:3px;font-weight:600;text-transform:uppercase}main{max-width:1100px;margin:0 auto;padding:2rem}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem}.stat{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.25rem;text-align:center}.stat-value{font-size:1.75rem;font-weight:700;color:var(--rust)}.stat-label{font-size:0.75rem;color:var(--muted);margin-top:0.25rem;text-transform:uppercase;letter-spacing:0.05em}.grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.5rem}.card h2{font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem}.form-row{display:flex;gap:0.5rem;margin-bottom:0.75rem;flex-wrap:wrap;align-items:flex-start}select,input,textarea{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.5rem 0.75rem;border-radius:4px;font-family:inherit;font-size:0.85rem}.form-row select,.form-row input{flex:1}textarea{width:100%;min-height:80px;resize:vertical}.btn{background:var(--rust);color:var(--cream);border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;font-family:inherit;font-size:0.85rem;font-weight:600}.btn:hover{opacity:0.85}.btn-sm{padding:0.25rem 0.6rem;font-size:0.75rem}.btn-danger{background:#7a2020}table{width:100%;border-collapse:collapse;font-size:0.82rem}th{text-align:left;color:var(--muted);padding:0.5rem;border-bottom:1px solid var(--border);font-size:0.75rem;text-transform:uppercase}td{padding:0.5rem;border-bottom:1px solid var(--border)}.empty{color:var(--muted);font-size:0.85rem;padding:1rem 0;text-align:center}.full{grid-column:1/-1}.badge-g{background:#1a3a1a;color:#5cb85c;border:1px solid #2d5a2d;border-radius:3px;padding:0.1rem 0.4rem;font-size:0.72rem}.badge-r{background:#3a1a1a;color:#d9534f;border:1px solid #5a2d2d;border-radius:3px;padding:0.1rem 0.4rem;font-size:0.72rem}.badge-y{background:#3a2f1a;color:#f0ad4e;border:1px solid #5a4a2d;border-radius:3px;padding:0.1rem 0.4rem;font-size:0.72rem}</style></head>
+<body><header><span class="logo">&#x2B21; Stockyard</span><span style="color:var(--muted)">/</span><span style="color:var(--cream);font-weight:600">Tally</span><span class="badge">Form Builder</span></header>
+<main><div class="stats"><div class="stat"><div class="stat-value" id="s1">0</div><div class="stat-label">Forms</div></div><div class="stat"><div class="stat-value" id="s2">0</div><div class="stat-label">Responses</div></div><div class="stat"><div class="stat-value" id="s3">FREE</div><div class="stat-label">Tier</div></div></div><div class="grid">
+<div class="card"><h2>New Form</h2>
+<div class="form-row"><input id="f-name" placeholder="Contact form"></div>
+<div class="form-row"><input id="f-desc" placeholder="Description (optional)"></div>
+<button class="btn" onclick="createForm()">Create Form</button></div>
+<div class="card"><h2>Add Field</h2>
+<p style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem">Select a form below first, then add fields to it.</p>
+<div class="form-row"><input id="f-flabel" placeholder="Field label"></div>
+<div class="form-row"><select id="f-ftype"><option value="text">Text</option><option value="email">Email</option><option value="textarea">Textarea</option><option value="number">Number</option><option value="select">Dropdown</option></select></div>
+<div id="opts-row" class="form-row" style="display:none"><input id="f-fopts" placeholder="Option 1, Option 2, Option 3"></div>
+<button class="btn" onclick="addField()">Add Field</button></div>
+<div class="card full"><h2>Forms</h2>
+<table><thead><tr><th>Name</th><th>Fields</th><th>Responses</th><th>Share URL</th><th></th></tr></thead>
+<tbody id="forms-body"><tr><td colspan="5" class="empty">No forms</td></tr></tbody></table></div>
+<div class="card full" id="resp-panel" style="display:none">
+<h2>Responses for <span id="resp-label" style="color:var(--cream)"></span></h2>
+<table><thead><tr><th>Time</th><th>Data</th></tr></thead>
+<tbody id="resp-body"></tbody></table></div>
+</div></main>
 <script>
-fetch('/api/limits').then(r=>r.json()).then(d=>{
-  document.getElementById('stat-tier').textContent = d.tier.toUpperCase();
-});
-fetch('/api/items').then(r=>r.json()).then(d=>{
-  document.getElementById('stat-items').textContent = Array.isArray(d) ? d.length : '0';
-});
-</script>
-</body>
-</html>`)
+async function api(m,p,bd){var o={method:m,headers:{"Content-Type":"application/json"}};if(bd)o.body=JSON.stringify(bd);var r=await fetch(p,o);try{return await r.json();}catch(e){return {};}}  
+var currentForm=null;var currentFields=[];
+document.getElementById("f-ftype").onchange=function(){document.getElementById("opts-row").style.display=this.value==="select"?"flex":"none";};
+async function load(){var s=await api("GET","/api/stats");var l=await api("GET","/api/limits");document.getElementById("s1").textContent=s.forms||0;document.getElementById("s2").textContent=s.responses||0;document.getElementById("s3").textContent=(l.tier||"free").toUpperCase();loadForms();}
+async function loadForms(){var data=await api("GET","/api/forms");var tbody=document.getElementById("forms-body");if(!data||!data.length){tbody.innerHTML="<tr><td colspan='5' class='empty'>No forms</td></tr>";return;}tbody.innerHTML=data.map(function(f){var url=window.location.origin+"/f/"+f.id;var fields=[];try{fields=JSON.parse(f.fields);}catch(e){}return "<tr><td style='color:var(--cream)'>"+f.name+"</td><td>"+fields.length+"</td><td><button class='btn btn-sm' onclick='showResponses("+f.id+",\""+f.name+"\")'>"+f.response_count+"</button></td><td><a href='"+url+"' target='_blank' style='color:var(--leather);font-size:0.82rem'>"+url+"</a></td><td><button class='btn btn-sm' onclick='selectForm("+f.id+")'>Edit</button> <button class='btn btn-sm btn-danger' onclick='deleteForm("+f.id+")'>Del</button></td></tr>";}).join("");}
+async function createForm(){var f={name:document.getElementById("f-name").value.trim(),description:document.getElementById("f-desc").value.trim()};if(!f.name){alert("Name required");return;}var res=await api("POST","/api/forms",f);if(res.error){alert(res.error);return;}document.getElementById("f-name").value="";load();}
+async function selectForm(id){currentForm=id;var f=await api("GET","/api/forms/"+id);try{currentFields=JSON.parse(f.fields);}catch(e){currentFields=[];}alert("Form "+id+" selected for field editing.");}
+async function addField(){if(!currentForm){alert("Select a form first by clicking Edit");return;}var label=document.getElementById("f-flabel").value.trim();var type=document.getElementById("f-ftype").value;if(!label){alert("Label required");return;}var field={type:type,label:label,required:false};if(type==="select"){var opts=document.getElementById("f-fopts").value.split(",").map(function(s){return s.trim();}).filter(Boolean);field.options=opts;}currentFields.push(field);var res=await api("PUT","/api/forms/"+currentForm+"/fields",currentFields);if(res.error){alert(res.error);return;}document.getElementById("f-flabel").value="";load();}
+async function showResponses(id,name){currentForm=id;document.getElementById("resp-panel").style.display="block";document.getElementById("resp-label").textContent=name;var data=await api("GET","/api/forms/"+id+"/responses?limit=50");var tbody=document.getElementById("resp-body");if(!data||!data.length){tbody.innerHTML="<tr><td colspan='2' class='empty'>No responses yet</td></tr>";return;}tbody.innerHTML=data.map(function(r){return "<tr><td style='font-size:0.75rem;color:var(--muted);white-space:nowrap'>"+new Date(r.created_at).toLocaleString()+"</td><td style='font-size:0.8rem;color:var(--cream)'>"+r.data+"</td></tr>";}).join("");}
+async function deleteForm(id){if(!confirm("Delete form and all responses?"))return;await api("DELETE","/api/forms/"+id);load();}
+load();
+</script></body></html>`)
