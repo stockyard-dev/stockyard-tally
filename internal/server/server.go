@@ -1,26 +1,28 @@
 package server
-import ("encoding/json";"net/http";"github.com/stockyard-dev/stockyard-tally/internal/store")
-type Server struct{db *store.DB;limits Limits;mux *http.ServeMux}
-func New(db *store.DB,tier string)*Server{s:=&Server{db:db,limits:LimitsFor(tier),mux:http.NewServeMux()};s.routes();return s}
-func(s *Server)ListenAndServe(addr string)error{return(&http.Server{Addr:addr,Handler:s.mux}).ListenAndServe()}
-func(s *Server)routes(){
-    s.mux.HandleFunc("GET /health",s.handleHealth)
-    s.mux.HandleFunc("GET /api/version",s.handleVersion)
-    s.mux.HandleFunc("GET /api/limits",s.handleLimits)
-    s.mux.HandleFunc("GET /api/stats",s.handleStats)
-    s.mux.HandleFunc("GET /api/forms",s.handleListForms)
-    s.mux.HandleFunc("POST /api/forms",s.handleCreateForm)
-    s.mux.HandleFunc("GET /api/forms/{id}",s.handleGetForm)
-    s.mux.HandleFunc("PUT /api/forms/{id}/fields",s.handleUpdateFields)
-    s.mux.HandleFunc("DELETE /api/forms/{id}",s.handleDeleteForm)
-    s.mux.HandleFunc("POST /api/forms/{id}/submit",s.handleSubmit)
-    s.mux.HandleFunc("GET /api/forms/{id}/responses",s.handleListResponses)
-    s.mux.HandleFunc("GET /f/{id}",s.handleFormPage)
-    s.mux.HandleFunc("GET /",s.handleUI)
-}
-func(s *Server)handleHealth(w http.ResponseWriter,r *http.Request){writeJSON(w,200,map[string]string{"status":"ok","service":"stockyard-tally"})}  
-func(s *Server)handleVersion(w http.ResponseWriter,r *http.Request){writeJSON(w,200,map[string]string{"version":"0.1.0","service":"stockyard-tally"})}  
-func(s *Server)handleLimits(w http.ResponseWriter,r *http.Request){writeJSON(w,200,map[string]interface{}{"tier":s.limits.Tier,"description":s.limits.Description,"is_pro":s.limits.IsPro()})}
-func writeJSON(w http.ResponseWriter,status int,v interface{}){w.Header().Set("Content-Type","application/json");w.WriteHeader(status);json.NewEncoder(w).Encode(v)}
-func writeError(w http.ResponseWriter,status int,msg string){writeJSON(w,status,map[string]string{"error":msg})}
-func(s *Server)handleUI(w http.ResponseWriter,r *http.Request){if r.URL.Path!="/"{http.NotFound(w,r);return};w.Header().Set("Content-Type","text/html");w.Write(dashboardHTML)}
+import ("encoding/json";"log";"net/http";"strconv";"github.com/stockyard-dev/stockyard-tally/internal/store")
+type Server struct{db *store.DB;mux *http.ServeMux}
+func New(db *store.DB)*Server{s:=&Server{db:db,mux:http.NewServeMux()}
+s.mux.HandleFunc("GET /api/counters",s.list);s.mux.HandleFunc("POST /api/counters",s.create);s.mux.HandleFunc("GET /api/counters/{id}",s.get);s.mux.HandleFunc("DELETE /api/counters/{id}",s.del)
+s.mux.HandleFunc("POST /api/increment",s.increment);s.mux.HandleFunc("POST /api/set",s.set);s.mux.HandleFunc("GET /api/value",s.value)
+s.mux.HandleFunc("GET /api/namespaces",s.namespaces)
+s.mux.HandleFunc("GET /api/stats",s.stats);s.mux.HandleFunc("GET /api/health",s.health)
+s.mux.HandleFunc("GET /ui",s.dashboard);s.mux.HandleFunc("GET /ui/",s.dashboard);s.mux.HandleFunc("GET /",s.root);return s}
+func(s *Server)ServeHTTP(w http.ResponseWriter,r *http.Request){s.mux.ServeHTTP(w,r)}
+func wj(w http.ResponseWriter,c int,v any){w.Header().Set("Content-Type","application/json");w.WriteHeader(c);json.NewEncoder(w).Encode(v)}
+func we(w http.ResponseWriter,c int,m string){wj(w,c,map[string]string{"error":m})}
+func(s *Server)root(w http.ResponseWriter,r *http.Request){if r.URL.Path!="/"{http.NotFound(w,r);return};http.Redirect(w,r,"/ui",302)}
+func(s *Server)list(w http.ResponseWriter,r *http.Request){wj(w,200,map[string]any{"counters":oe(s.db.List(r.URL.Query().Get("namespace")))})}
+func(s *Server)create(w http.ResponseWriter,r *http.Request){var c store.Counter;json.NewDecoder(r.Body).Decode(&c);if c.Name==""{we(w,400,"name required");return};s.db.Create(&c);wj(w,201,s.db.GetByID(c.ID))}
+func(s *Server)get(w http.ResponseWriter,r *http.Request){c:=s.db.GetByID(r.PathValue("id"));if c==nil{we(w,404,"not found");return};wj(w,200,c)}
+func(s *Server)del(w http.ResponseWriter,r *http.Request){s.db.Delete(r.PathValue("id"));wj(w,200,map[string]string{"deleted":"ok"})}
+func(s *Server)increment(w http.ResponseWriter,r *http.Request){var req struct{Name string `json:"name"`;Namespace string `json:"namespace"`;By int64 `json:"by"`};json.NewDecoder(r.Body).Decode(&req)
+if req.Name==""{we(w,400,"name required");return};if req.By==0{req.By=1};c:=s.db.Increment(req.Name,req.Namespace,req.By);wj(w,200,c)}
+func(s *Server)set(w http.ResponseWriter,r *http.Request){var req struct{Name string `json:"name"`;Namespace string `json:"namespace"`;Value int64 `json:"value"`};json.NewDecoder(r.Body).Decode(&req)
+if req.Name==""{we(w,400,"name required");return};c:=s.db.Set(req.Name,req.Namespace,req.Value);wj(w,200,c)}
+func(s *Server)value(w http.ResponseWriter,r *http.Request){name:=r.URL.Query().Get("name");ns:=r.URL.Query().Get("namespace");c:=s.db.Get(name,ns)
+if c==nil{wj(w,200,map[string]any{"name":name,"value":0});return};wj(w,200,map[string]any{"name":c.Name,"value":c.Value})}
+func(s *Server)namespaces(w http.ResponseWriter,r *http.Request){wj(w,200,map[string]any{"namespaces":oe(s.db.Namespaces())})}
+func(s *Server)stats(w http.ResponseWriter,r *http.Request){wj(w,200,s.db.Stats())}
+func(s *Server)health(w http.ResponseWriter,r *http.Request){st:=s.db.Stats();wj(w,200,map[string]any{"status":"ok","service":"tally","counters":st.Counters})}
+func oe[T any](s []T)[]T{if s==nil{return[]T{}};return s}
+func init(){log.SetFlags(log.LstdFlags|log.Lshortfile)};var _=strconv.Atoi
